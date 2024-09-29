@@ -1,0 +1,318 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to create VPCs, subnets, and attachments with IGW and routing.
+
+Parameters:
+  SYSTEM:
+    Type: String
+    Default: demo
+    Description: The system name to be used in resource naming.
+
+Resources:
+  # VPCs
+  VPCA:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: '10.0.0.0/16'
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-vpc-a"
+
+  VPCB:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: '10.237.0.0/16'
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-vpc-b"
+
+  VPCC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: '172.16.0.0/16'
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-vpc-c"
+
+  VPCD:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: '10.3.0.0/16'
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-vpc-d"
+
+  # Subnets
+  SubnetA:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPCA
+      CidrBlock: '10.0.0.0/24'
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-subnet-A"
+
+  SubnetB:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPCB
+      CidrBlock: '10.237.0.0/24'
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-subnet-B"
+
+  SubnetC:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPCC
+      CidrBlock: '172.16.0.0/24'
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-subnet-c"
+
+  SubnetD:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPCD
+      CidrBlock: '10.3.0.0/24'
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-subnet-d"
+
+  # Route Tables
+  RouteTableA:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPCA
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-rtb-a"
+
+  RouteTableB:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPCB
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-rtb-b"
+
+  RouteTableC:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPCC
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-rtb-c"
+
+  RouteTableD:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPCD
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-rtb-d"
+
+  # Internet Gateways
+  InternetGatewayA:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-igw-a"
+
+  InternetGatewayB:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-igw-b"
+
+  InternetGatewayC:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-igw-c"
+
+  InternetGatewayD:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-igw-d"
+
+  # VPC Gateway Attachments
+  IGWAttachmentA:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPCA
+      InternetGatewayId: !Ref InternetGatewayA
+
+  IGWAttachmentB:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPCB
+      InternetGatewayId: !Ref InternetGatewayB
+
+  IGWAttachmentC:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPCC
+      InternetGatewayId: !Ref InternetGatewayC
+
+  IGWAttachmentD:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPCD
+      InternetGatewayId: !Ref InternetGatewayD
+
+  # VPC Peering Connection
+  VPCPeeringConnectionAB:
+    Type: 'AWS::EC2::VPCPeeringConnection'
+    Properties:
+      VpcId: !Ref VPCA
+      PeerVpcId: !Ref VPCB
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-vpc-peering"
+
+  # Routes for VPC Peering
+  RouteAToB:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTableA
+      DestinationCidrBlock: '10.237.0.0/16'
+      VpcPeeringConnectionId: !Ref VPCPeeringConnectionAB
+
+  RouteBToA:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTableB
+      DestinationCidrBlock: '10.0.0.0/16'
+      VpcPeeringConnectionId: !Ref VPCPeeringConnectionAB
+
+  # Routes to Internet Gateways
+  RouteAToIGW:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTableA
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGatewayA
+
+  RouteBToIGW:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTableB
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGatewayB
+
+  RouteCToIGW:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTableC
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGatewayC
+
+  RouteDToIGW:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTableD
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGatewayD
+
+  # Route Table Associations
+  RouteTableAssociationA:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetA
+      RouteTableId: !Ref RouteTableA
+
+  RouteTableAssociationB:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetB
+      RouteTableId: !Ref RouteTableB
+
+  RouteTableAssociationC:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetC
+      RouteTableId: !Ref RouteTableC
+
+  RouteTableAssociationD:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetD
+      RouteTableId: !Ref RouteTableD
+
+Outputs:
+  VPCAId:
+    Description: 'VPC A ID'
+    Value: !Ref VPCA
+    Export:
+      Name: !Sub "${SYSTEM}-VPCAId"
+
+  VPCBId:
+    Description: 'VPC B ID'
+    Value: !Ref VPCB
+    Export:
+      Name: !Sub "${SYSTEM}-VPCBId"
+
+  VPCCId:
+    Description: 'VPC C ID'
+    Value: !Ref VPCC
+    Export:
+      Name: !Sub "${SYSTEM}-VPCCId"
+
+  VPCDId:
+    Description: 'VPC D ID'
+    Value: !Ref VPCD
+    Export:
+      Name: !Sub "${SYSTEM}-VPCDId"
+
+  SubnetAId:
+    Description: 'Subnet A ID'
+    Value: !Ref SubnetA
+    Export:
+      Name: !Sub "${SYSTEM}-SubnetAId"
+
+  SubnetBId:
+    Description: 'Subnet B ID'
+    Value: !Ref SubnetB
+    Export:
+      Name: !Sub "${SYSTEM}-SubnetBId"
+
+  SubnetCId:
+    Description: 'Subnet C ID'
+    Value: !Ref SubnetC
+    Export:
+      Name: !Sub "${SYSTEM}-SubnetCId"
+
+  SubnetDId:
+    Description: 'Subnet D ID'
+    Value: !Ref SubnetD
+    Export:
+      Name: !Sub "${SYSTEM}-SubnetDId"
+
+  RouteTableCId:
+    Description: 'RouteTable C ID'
+    Value: !Ref RouteTableC
+    Export:
+      Name: !Sub "${SYSTEM}-RouteTableCId"
+
+  RouteTableDId:
+    Description: 'RouteTable D ID'
+    Value: !Ref RouteTableD
+    Export:
+      Name: !Sub "${SYSTEM}-RouteTableDId"

@@ -1,0 +1,168 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to create EC2 instances in VPC C and VPC D with security groups and IAM roles.
+
+Parameters:
+  SYSTEM:
+    Type: String
+    Default: demo
+    Description: The system name to be used in resource naming.
+
+Resources:
+  # IAM Role for EC2 Instances
+  EC2InstanceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub "${SYSTEM}-ec2-instance-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  # Security Group for VPC A
+  SecurityGroupA:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: !Sub "${SYSTEM} Security Group for VPC A"
+      VpcId: 
+        Fn::ImportValue: !Sub "${SYSTEM}-VPCAId"
+
+  # Security Group for VPC B
+  SecurityGroupB:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: !Sub "${SYSTEM} Security Group for VPC B"
+      VpcId: 
+        Fn::ImportValue: !Sub "${SYSTEM}-VPCBId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  # Security Group for VPC C
+  SecurityGroupC:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: !Sub "${SYSTEM} Security Group for VPC C"
+      VpcId: 
+        Fn::ImportValue: !Sub "${SYSTEM}-VPCCId"
+
+  # Security Group for VPC D
+  SecurityGroupD:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: !Sub "${SYSTEM} Security Group for VPC D"
+      VpcId: 
+        Fn::ImportValue: !Sub "${SYSTEM}-VPCDId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  # IAM Instance Profile for EC2 Instances
+  EC2InstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Roles:
+        - !Ref EC2InstanceRole
+
+  # EC2 Instance in VPC A
+  EC2InstanceA:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType: 't2.micro'
+      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}"
+      SubnetId: 
+        Fn::ImportValue: !Sub "${SYSTEM}-SubnetAId"
+      SecurityGroupIds:
+        - !Ref SecurityGroupA
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-ec2-a"
+
+  # EC2 Instance in VPC B
+  EC2InstanceB:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType: 't2.micro'
+      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}"
+      SubnetId: 
+        Fn::ImportValue: !Sub "${SYSTEM}-SubnetBId"
+      SecurityGroupIds:
+        - !Ref SecurityGroupB
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      UserData: 
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          echo "<html><h1>Hello from ${SYSTEM} on VPC B</h1></html>" > /var/www/html/index.html
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-ec2-b"
+
+  # EC2 Instance in VPC C
+  EC2InstanceC:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType: 't2.micro'
+      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}"
+      SubnetId: 
+        Fn::ImportValue: !Sub "${SYSTEM}-SubnetCId"
+      SecurityGroupIds:
+        - !Ref SecurityGroupC
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-ec2-c"
+
+  # EC2 Instance in VPC D
+  EC2InstanceD:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType: 't2.micro'
+      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}"
+      SubnetId: 
+        Fn::ImportValue: !Sub "${SYSTEM}-SubnetDId"
+      SecurityGroupIds:
+        - !Ref SecurityGroupD
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      UserData: 
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          echo "<html><h1>Hello from ${SYSTEM} on VPC D</h1></html>" > /var/www/html/index.html
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-ec2-d"
+
+Outputs:
+  EC2InstanceCID:
+    Description: 'EC2 Instance C ID'
+    Value: !Ref EC2InstanceC
+    Export:
+      Name: !Sub "${SYSTEM}-EC2InstanceCID"
+
+  EC2InstanceDID:
+    Description: 'EC2 Instance D ID'
+    Value: !Ref EC2InstanceD
+    Export:
+      Name: !Sub "${SYSTEM}-EC2InstanceDID"
+
+  EC2InstanceDPrivateIP:
+    Description: 'EC2 Instance D Private IP'
+    Value: !GetAtt EC2InstanceD.PrivateIp
+    Export:
+      Name: !Sub "${SYSTEM}-EC2InstanceDPrivateIP"

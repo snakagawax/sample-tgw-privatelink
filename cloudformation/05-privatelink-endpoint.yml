@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  CloudFormation template to create a PrivateLink VPC Endpoint in VPC-B.
+  This endpoint connects to the PrivateLink service defined in VPC-C.
+
+Parameters:
+  SYSTEM:
+    Type: String
+    Default: demo
+    Description: The system name to be used in resource naming.
+
+Resources:
+  # Security Group for the VPC Endpoint in VPC-B
+  EndpointSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: !Sub "${SYSTEM} Security Group for VPC Endpoint in VPC-B"
+      VpcId: 
+        Fn::ImportValue: !Sub "${SYSTEM}-VPCBId"  # VPC-BのVPC IDをインポート
+      SecurityGroupIngress: 
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: '10.0.0.0/16'  # VPC-AのCIDRブロックを許可
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-endpoint-sg-vpc-b"
+
+  # VPC Endpoint
+  VPCEndpoint:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      VpcId: 
+        Fn::ImportValue: !Sub "${SYSTEM}-VPCBId"  # VPC-BのVPC IDをインポート
+      ServiceName: 
+        Fn::ImportValue: !Sub "com.amazonaws.vpce.${AWS::Region}.${VPCEndpointService}"
+      VpcEndpointType: Interface
+      RouteTableIds: []
+      SubnetIds: 
+        - Fn::ImportValue: !Sub "${SYSTEM}-SubnetBId"  # VPC-BのSubnet IDをインポート
+      SecurityGroupIds:
+        - !Ref EndpointSecurityGroup
+      PrivateDnsEnabled: true
+      PolicyDocument:
+        Statement:
+          - Resource: '*'
+            Action: '*'
+            Effect: Allow
+            Principal: '*'

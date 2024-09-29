@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to create VPCs and public subnets.
+
+Parameters:
+  SYSTEM:
+    Type: String
+    Default: demo
+    Description: The system name to be used in resource naming.
+
+Resources:
+  # Transit Gateway
+  TransitGateway:
+    Type: 'AWS::EC2::TransitGateway'
+    Properties:
+      Description: 'Transit Gateway for VPC C and VPC D'
+      DefaultRouteTableAssociation: enable
+      DefaultRouteTablePropagation: enable
+      AutoAcceptSharedAttachments: enable
+      DnsSupport: enable
+      VpnEcmpSupport: enable
+
+  # Transit Gateway Route Table
+  TransitGatewayRouteTable:
+    Type: 'AWS::EC2::TransitGatewayRouteTable'
+    Properties:
+      TransitGatewayId: !Ref TransitGateway
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-tgw-rtb"
+
+  # Transit Gateway Attachment C
+  TGWAttachmentC:
+    Type: 'AWS::EC2::TransitGatewayAttachment'
+    Properties:
+      TransitGatewayId: !Ref TransitGateway
+      VpcId:
+        Fn::ImportValue: !Sub "${SYSTEM}-VPCCId"
+      SubnetIds: 
+        - Fn::ImportValue: !Sub "${SYSTEM}-SubnetCId"
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-tgw-attachment-c"
+
+  # Transit Gateway Attachment D
+  TGWAttachmentD:
+    Type: 'AWS::EC2::TransitGatewayAttachment'
+    Properties:
+      TransitGatewayId: !Ref TransitGateway
+      VpcId: 
+        Fn::ImportValue: !Sub "${SYSTEM}-VPCDId"
+      SubnetIds: 
+        - Fn::ImportValue: !Sub "${SYSTEM}-SubnetDId"
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-tgw-attachment-d"
+
+  # Route for VPC C to Transit Gateway
+  RouteC:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId:
+        Fn::ImportValue: !Sub "${SYSTEM}-RouteTableCId"
+      DestinationCidrBlock: '10.3.0.0/16'
+      TransitGatewayId: !Ref TransitGateway
+    DependsOn: TGWAttachmentC
+
+  # Route for VPC D to Transit Gateway
+  RouteD:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: 
+        Fn::ImportValue: !Sub "${SYSTEM}-RouteTableDId"
+      DestinationCidrBlock: '172.16.0.0/24'
+      TransitGatewayId: !Ref TransitGateway
+    DependsOn: TGWAttachmentD
+
+Outputs:
+  TransitGatewayId:
+    Description: 'Transit Gateway ID'
+    Value: !Ref TransitGateway

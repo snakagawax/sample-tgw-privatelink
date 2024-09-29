@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to create NLB and PrivateLink Service in VPC-C.
+
+Parameters:
+  SYSTEM:
+    Type: String
+    Default: demo
+    Description: The system name to be used in resource naming.
+
+Resources:
+  # Network Load Balancer in VPC C
+  NLB:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Name: !Sub "${SYSTEM}-nlb"
+      Subnets:
+        - Fn::ImportValue: !Sub "${SYSTEM}-SubnetCId"
+      Scheme: internal
+      Type: network
+      Tags:
+        - Key: Name
+          Value: !Sub "${SYSTEM}-nlb"
+
+  NLBListener:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      Protocol: "TCP"
+      LoadBalancerArn: !Ref NLB
+      DefaultActions:
+      - TargetGroupArn: !Ref TargetGroup
+        Type: "forward"
+      Port: 80
+
+  TargetGroup:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties:
+      IpAddressType: "ipv4"
+      HealthCheckIntervalSeconds: 30
+      Port: 80
+      Targets:
+      - AvailabilityZone: "all"
+        Port: 80
+        Id:
+          Fn::ImportValue: !Sub "${SYSTEM}-EC2InstanceDPrivateIP"
+      HealthCheckEnabled: true
+      UnhealthyThresholdCount: 2
+      HealthCheckTimeoutSeconds: 10
+      Name: !Sub "${SYSTEM}-tg"
+      VpcId:
+        Fn::ImportValue: !Sub "${SYSTEM}-VPCCId"
+      HealthyThresholdCount: 5
+      HealthCheckProtocol: "TCP"
+      TargetGroupAttributes:
+      - Value: "source_ip"
+        Key: "stickiness.type"
+      - Value: "1"
+        Key: "target_group_health.dns_failover.minimum_healthy_targets.count"
+      - Value: "use_load_balancer_configuration"
+        Key: "load_balancing.cross_zone.enabled"
+      - Value: "off"
+        Key: "target_group_health.dns_failover.minimum_healthy_targets.percentage"
+      - Value: "false"
+        Key: "stickiness.enabled"
+      - Value: "off"
+        Key: "target_group_health.unhealthy_state_routing.minimum_healthy_targets.percentage"
+      - Value: "0"
+        Key: "target_health_state.unhealthy.draining_interval_seconds"
+      - Value: "300"
+        Key: "deregistration_delay.timeout_seconds"
+      - Value: "1"
+        Key: "target_group_health.unhealthy_state_routing.minimum_healthy_targets.count"
+      - Value: "false"
+        Key: "proxy_protocol_v2.enabled"
+      - Value: "false"
+        Key: "deregistration_delay.connection_termination.enabled"
+      - Value: "false"
+        Key: "preserve_client_ip.enabled"
+      - Value: "true"
+        Key: "target_health_state.unhealthy.connection_termination.enabled"
+      TargetType: "ip"
+      HealthCheckPort: "traffic-port"
+      Protocol: "TCP"
+
+  # VPC Endpoint Service for PrivateLink
+  VPCService:
+    Type: 'AWS::EC2::VPCEndpointService'
+    Properties:
+      NetworkLoadBalancerArns:
+        - !Ref NLB
+      AcceptanceRequired: false
+
+Outputs:
+  NLBArn:
+    Description: 'Network Load Balancer ARN'
+    Value: !Ref NLB
+    Export:
+      Name: !Sub "${SYSTEM}-NLBArn"
+
+  VPCServiceId:
+    Description: 'VPC Endpoint Service ID'
+    Value: !Ref VPCService
+    Export:
+      Name: !Sub "${SYSTEM}-VPCServiceId"
