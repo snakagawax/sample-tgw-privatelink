@@ -1,116 +1,75 @@
 # AWS SAM DynamoDB to SNS Lambda Function
 
-Transit Gateway と Private Link のサンプルです。
+Transit Gateway と Private Link を使った構成のハンズオンを含めたサンプルです。
 
 ![構成](images/image.png)
 
 ## 前提条件
 
-- AWS CLI
+以下がインストールされていること
 
-## プロジェクトのセットアップ
+- AWS CLI 
+- jq 
 
-### 1. リポジトリのクローン
+## 準備
+
+### リポジトリのクローン
 
 ```sh
 git clone https://github.com/snakagawax/sample-tgw-privatelink
 cd sample-tgw-privatelink
 ```
 
-### 2. SAMテンプレートのビルド
+### リソースのデプロイ方法
 
-```sh
-sam build
+リソースのデプロイまたは削除をするには、スクリプト cfn.sh を使用します。
+`./cfn.sh [deploy|delete] [stack_number]` 
+
+例.1 01-network.yml をデプロイするとき
+```
+$ ./cfn.sh deploy 01
+-------------------------------------------
+Deploying stack: network using 01-network.yml
+-------------------------------------------
+
+Waiting for changeset to be created..
+Waiting for stack create/update to complete
+Successfully created/updated stack - network
+✅ Stack 'network' deployed successfully with status: CREATE_COMPLETE
 ```
 
-### 3. SAMスタックのデプロイ
+例.2 04-privatelink-service.yml を削除するとき
 
-```sh
-sam deploy --guided
+```
+$ ./cfn.sh delete 04
+-------------------------------------------
+Deleting stack: privatelink-service
+-------------------------------------------
+Initiated deletion of stack 'privatelink-service'.
+Waiting for stack 'privatelink-service' to be deleted...
+✅ Stack 'privatelink-service' deleted successfully.
 ```
 
-プロンプトに従って、スタック名、リージョン、その他の設定を入力します。以下は例です：
+例.3 すべてのテンプレートをデプロイするとき
 
-```plaintext
-Stack Name [sam-app]: 
-AWS Region [ap-northeast-1]: ap-northeast-1
-Confirm changes before deploy [y/N]: Y
-Allow SAM CLI IAM role creation [Y/n]: Y
-Disable rollback [y/N]: N
-DynamoDBToSNSFunction has no authentication. Is this okay? [y/N]: Y
-Save arguments to configuration file [Y/n]: Y
-SAM configuration file [samconfig.toml]: samconfig.toml
-SAM configuration environment [default]: default
+```
+$ ./cfn.sh deploy
 ```
 
-## SNSサブスクリプションの追加
+例.4 すべてのスタックを削除するとき
 
-### 1. 環境変数を設定
-
-```sh
-AWS_ACCOUNT=`aws sts get-caller-identity --query Account --output text`
-MAIL_ADDRESS_1=foo@example.com
-MAIL_ADDRESS_2=bar@example.com
+```
+$ ./cfn.sh delete
 ```
 
-### 2. SNSトピックへのEmailサブスクリプション
+## ハンズオン
 
-```sh
-aws sns subscribe \
-    --topic-arn arn:aws:sns:ap-northeast-1:${AWS_ACCOUNT}:ServiceTopicA \
-    --protocol email \
-    --notification-endpoint ${MAIL_ADDRESS_1}
+- [Transit Gateway の作成]
 
-aws sns subscribe \
-    --topic-arn arn:aws:sns:ap-northeast-1:${AWS_ACCOUNT}:ServiceTopicB \
-    --protocol email \
-    --notification-endpoint ${MAIL_ADDRESS_2}
+## 片付け
+
+すべてのスタックを削除します
+
 ```
-
-### 3. サプスクライブする
-
-メールが届くので[Confirm subscription]をクリックする。
-
-## DynamoDBテーブルへのデータ登録
-
-### 1. DynamoDBテーブルへのデータ登録
-
-```sh
-aws dynamodb put-item \
-    --table-name ServiceTable \
-    --item "{
-        \"serviceName\": {\"S\": \"ProjectA\"},
-        \"snsTopicArn\": {\"S\": \"arn:aws:sns:ap-northeast-1:${AWS_ACCOUNT}:ServiceTopicA\"}
-    }"
-
-aws dynamodb put-item \
-    --table-name ServiceTable \
-    --item "{
-        \"serviceName\": {\"S\": \"ProjectB\"},
-        \"snsTopicArn\": {\"S\": \"arn:aws:sns:ap-northeast-1:${AWS_ACCOUNT}:ServiceTopicB\"}
-    }"
-```
-
-## テストの実行
-
-#### 1. AWS CLIを使用したテスト
-
-```sh
-aws lambda invoke \
-    --invocation-type RequestResponse \
-    --function-name sam-app-DynamoDBToSNSFunction \
-    --region ap-northeast-1 \
-    --log-type Tail \
-    --payload fileb://event.json \
-    response.json
-```
-
-`response.json`ファイルにレスポンスが保存されます。
-
-## クリーンアップ
-
-リソースを削除する場合は、以下のコマンドを実行してスタックを削除します。
-
-```sh
-sam delete
+$ ./cfn.sh delete
 ```
