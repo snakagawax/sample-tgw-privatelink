@@ -64,7 +64,7 @@ $ ./cfn.sh delete
 
 ## ハンズオン
 
-- [Transit Gateway の作成]
+- [Transit Gateway の作成](handson/01-TGW.md)
 
 ## 片付け
 
