@@ -1,4 +1,4 @@
-# AWS SAM DynamoDB to SNS Lambda Function
+# Transit Gateway と Private Link の構築
 
 Transit Gateway と Private Link を使った構成のハンズオンを含めたサンプルです。
 
